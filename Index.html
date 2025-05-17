@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Mobile GPS + Weather + Routing</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <meta charset="utf-8" />
+  <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.css" />
+  <style>
+    html, body, #map {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+    }
+    .leaflet-control-attribution {
+      font-size: 10px;
+    }
+  </style>
+</head>
+<body>
+<div id="map"></div>
+
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.min.js"></script>
+<script>
+  const map = L.map('map').fitWorld();
+
+  // Base map
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '&copy; OpenStreetMap contributors'
+  }).addTo(map);
+
+  // Radar layer from RainViewer
+  const radarLayer = L.tileLayer('https://tilecache.rainviewer.com/v2/radar/nowcast/0/256/{z}/{x}/{y}/2/1_1.png', {
+    opacity: 0.6,
+    zIndex: 10
+  }).addTo(map);
+
+  let userLatLng = null;
+  let routingControl = null;
+
+  function onLocationFound(e) {
+    userLatLng = e.latlng;
+    L.marker(userLatLng).addTo(map)
+      .bindPopup("You are here").openPopup();
+
+    L.circle(userLatLng, e.accuracy / 2).addTo(map);
+
+    map.setView(userLatLng, 13);
+  }
+
+  function onLocationError(e) {
+    alert(e.message);
+  }
+
+  map.on('locationfound', onLocationFound);
+  map.on('locationerror', onLocationError);
+  map.locate({setView: true, maxZoom: 16, watch: true});
+
+  map.on('click', function(e) {
+    if (!userLatLng) {
+      alert("Waiting for GPS location...");
+      return;
+    }
+
+    if (routingControl) {
+      map.removeControl(routingControl);
+    }
+
+    routingControl = L.Routing.control({
+      waypoints: [
+        userLatLng,
+        e.latlng
+      ],
+      routeWhileDragging: false
+    }).addTo(map);
+  });
+
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('service-worker.js');
+  }
+</script>
+</body>
+</html>
